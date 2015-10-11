@@ -45,52 +45,68 @@ CONTENT=""
 # setTemplate <TEMPLATEFILE>
 setTemplate() {
   local FILE=$1
-	debug "Trying to set template to \"${FILE}\"."
-	if [ -z "${FILE}" ] || [ ! -f "${FILE}" ]
-	then
-	  error "\"${FILE}\" is not a file."
-	fi
-	local ABSFILE=$(expand_filepath ${FILE})
-	debug "Expanded ${FILE} to ${ABSFILE}."
-  TEMPLATE=${ABSFILE}	
-	return 0
+  debug "Trying to set template to \"${FILE}\"."
+  if [ -z "${FILE}" ] || [ ! -f "${FILE}" ]
+  then
+    error "\"${FILE}\" is not a file."
+  fi
+  local ABSFILE=$(expand_filepath ${FILE})
+  debug "Expanded ${FILE} to ${ABSFILE}."
+  TEMPLATE=${ABSFILE} 
+  return 0
 }
 
 ###################
 # setPreamble <PREAMBLEFILE>
 setPreamble() {
   local FILE=$1
-	debug "Trying to set preamble to \"${FILE}\"."
-	if [ -z "${FILE}" ] || [ ! -f "${FILE}" ]
-	then
-	  error "\"${FILE}\" is not a file."
-	fi
-	local ABSFILE=$(expand_filepath ${FILE})
-	debug "Expanded ${FILE} to ${ABSFILE}."
-  PREAMBLE=${ABSFILE}	
-	return 0
+  debug "Trying to set preamble to \"${FILE}\"."
+  if [ -z "${FILE}" ] || [ ! -f "${FILE}" ]
+  then
+    error "\"${FILE}\" is not a file."
+  fi
+  local ABSFILE=$(expand_filepath ${FILE})
+  debug "Expanded ${FILE} to ${ABSFILE}."
+  PREAMBLE=${ABSFILE} 
+  return 0
 }
 
 ###################
 # setContent <CONTENTFILE>
 setContent() {
   local FILE=$1
-	debug "Trying to set content to \"${FILE}\"."
-	if [ -z "${FILE}" ] || [ ! -f "${FILE}" ]
-	then
-	  error "\"${FILE}\" is not a file."
-	fi
-	local ABSFILE=$(expand_filepath ${FILE})
-	debug "Expanded ${FILE} to ${ABSFILE}."
-  CONTENT=${ABSFILE}	
-	return 0
+  debug "Trying to set content to \"${FILE}\"."
+  if [ -z "${FILE}" ] || [ ! -f "${FILE}" ]
+  then
+    error "\"${FILE}\" is not a file."
+  fi
+  local ABSFILE=$(expand_filepath ${FILE})
+  debug "Expanded ${FILE} to ${ABSFILE}."
+  CONTENT=${ABSFILE}  
+  return 0
+}
+
+###################
+# buildPreambleImportString
+buildPreambleImportString() {
+  local PREAMBLE_DIR=$(extract_dir ${PREAMBLE})
+  local PREAMBLE_FILE=$(extract_basename ${PREAMBLE})
+  echo -E "\import{${PREAMBLE_DIR}/}{${PREAMBLE_FILE}}" 
+}
+
+###################
+# buildContentImportString
+buildContentImportString() {
+  local CONTENT_DIR=$(extract_dir ${CONTENT})
+  local CONTENT_FILE=$(extract_basename ${CONTENT})
+  echo -E "\import{${CONTENT_DIR}/}{${CONTENT_FILE}}" 
 }
 
 ###################
 # createDefaultTemplateFile <FILEPATH>
 createDefaultTemplate() {
   local FILEPATH=$1
-	cat << EOF > ${FILEPATH}
+  cat << EOF > ${FILEPATH}
 \documentclass{article}
 \usepackage{graphicx}
 \usepackage{xcolor}
@@ -99,20 +115,17 @@ createDefaultTemplate() {
 \usepackage[active,tightpage]{preview}
 EOF
   if [ -n "${PREAMBLE}" ]
-	then
-	  local PREAMBLE_DIR=$(extract_dir ${PREAMBLE})
-	  local PREAMBLE_FILE=$(extract_basename ${PREAMBLE})
-    echo -e "\import{$PREAMBLE_DIR/}{$PREAMBLE_FILE}" >> ${FILEPATH}
+  then
+    local PREAMBLE_IMPORT=$(buildPreambleImportString)
+    echo -E "${PREAMBLE_IMPORT}" >> ${FILEPATH}
   fi
-	cat << EOF >> ${FILEPATH}
+  cat << EOF >> ${FILEPATH}
 \begin{document}
 \begin{preview}
 \begin{tikzpicture}
 EOF
-	local CONTENT_DIR=$(extract_dir ${CONTENT})
-	local CONTENT_FILE=$(extract_basename ${CONTENT})
-  echo -e "\import{$CONTENT_DIR/}{$CONTENT_FILE}" >> ${FILEPATH}
-  #\input{content}
+  local CONTENT_IMPORT=$(buildContentImportString)
+  echo -E "${CONTENT_IMPORT}" >> ${FILEPATH}
 cat << EOF >> ${FILEPATH}
 \end{tikzpicture}
 \end{preview}
@@ -121,18 +134,38 @@ EOF
 }
 
 ###################
+# useCustomTemplate <FILEPATH>
+useCustomTemplate() {
+  local FILEPATH=$1
+  cp ${TEMPLATE} ${FILEPATH}
+
+  if [ -n "${PREAMBLE}" ]
+  then
+    local PREAMBLE_IMPORT=$(buildPreambleImportString)
+    PREAMBLE_IMPORT=$(echo ${PREAMBLE_IMPORT} | sed -e 's/[\/&]/\\&/g')
+    debug "sed -i \"s/^% {T2P:PREAMBLE}/${PREAMBLE_IMPORT}/\" ${FILEPATH}"
+    sed -i "s/^% {T2P:PREAMBLE}/${PREAMBLE_IMPORT}/" ${FILEPATH}
+  fi
+  
+  local CONTENT_IMPORT=$(buildContentImportString)
+  CONTENT_IMPORT=$(echo ${CONTENT_IMPORT} | sed -e 's/[\/&]/\\&/g')
+  debug "sed -i \"s/^% {T2P:CONTENT}/${CONTENT_IMPORT}/\" ${FILEPATH}"
+  sed -i "s/^% {T2P:CONTENT}/${CONTENT_IMPORT}/" ${FILEPATH}
+}
+
+###################
 # findPreamble
 findPreamble() {
-  local CANDIDATES=(preamble.t2p.tex preamble.t2p)
-	for c in ${CANDIDATES}
-	do
-		if [ -f "$c" ]
-		then
-		  setPreamble $c
-			return 0
-		fi
-	done
-	return 1
+  local CANDIDATES=(preamble.t2p.tex preamble.t2p ~/.preamble.t2p)
+  for c in ${CANDIDATES}
+  do
+    if [ -f "$c" ]
+    then
+      setPreamble $c
+      return 0
+    fi
+  done
+  return 1
 }
 
 ###################
@@ -143,9 +176,9 @@ compile() {
     error "No content specified."
   fi
   
-	if [ -z "${PREAMBLE}" ]
+  if [ -z "${PREAMBLE}" ]
   then
-	  findPreamble
+    findPreamble
   fi
 
   local F_TEMPLATE="template.tex"
@@ -154,34 +187,27 @@ compile() {
   local F_RESULT="template.pdf"
 
   local TMPDIR=$(mktemp -d)
-  debug "Created temporary directory ${TMPDIR}"
+  debug "Created temporary directory ${TMPDIR}."
   local PDFFILE=$(extract_base ${CONTENT})
-	PDFFILE=$(extract_base ${PDFFILE}).pdf
-  debug "PDF file will be named ${PDFFILE}"
+  PDFFILE=$(extract_base ${PDFFILE}).pdf
+  debug "PDF file will be named ${PDFFILE}."
 
   if [ -z "${TEMPLATE}" ]
   then
     createDefaultTemplate ${TMPDIR}/${F_TEMPLATE}
   else
-    cp ${TEMPLATE} ${TMPDIR}/${F_TEMPLATE}
+    useCustomTemplate ${TMPDIR}/${F_TEMPLATE}
   fi
-#  if [ -n "${PREAMBLE}" ]
-#  then
-#    cp ${PREAMBLE} ${TMPDIR}/${F_PREAMBLE}
-#  fi 
-#  cp ${CONTENT} ${TMPDIR}/${F_CONTENT}
 
   if [ ${DEBUG} -eq 0 ]
   then
-	  local CURDIR=$(pwd)
-	  cd ${TMPDIR} 
-    #TEXINPUTS=".:${CURDIR}//:" ${COMPILE_CMD} ${TMPDIR}/${F_TEMPLATE} && cp ${TMPDIR}/${F_RESULT} ${CURDIR}/
-    #TEXINPUTS="${TMPDIR}//:" ${COMPILE_CMD} ${TMPDIR}/${F_TEMPLATE} && cp ${TMPDIR}/${F_RESULT} .
+    local CURDIR=$(pwd)
+    cd ${TMPDIR} 
     ${COMPILE_CMD} ${TMPDIR}/${F_TEMPLATE} && cp ${TMPDIR}/${F_RESULT} ${CURDIR}/${PDFFILE}
-		cd ${CURDIR}
-		rm -r ${TMPDIR}
+    cd ${CURDIR}
+    rm -r ${TMPDIR}
   else
-    debug "Debug mode enabled. Please cleanup yourself."
+    debug "Debug mode enabled. Please compile and cleanup yourself :)"
   fi
 }
 
