@@ -96,6 +96,7 @@ createDefaultTemplate() {
 \usepackage{xcolor}
 \usepackage{tikz}
 \usepackage{import}
+\usepackage[active,tightpage]{preview}
 EOF
   if [ -n "${PREAMBLE}" ]
 	then
@@ -104,7 +105,6 @@ EOF
     echo -e "\import{$PREAMBLE_DIR/}{$PREAMBLE_FILE}" >> ${FILEPATH}
   fi
 	cat << EOF >> ${FILEPATH}
-\usepackage[active,tightpage]{preview}
 \begin{document}
 \begin{preview}
 \begin{tikzpicture}
