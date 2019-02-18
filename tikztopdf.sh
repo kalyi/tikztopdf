@@ -252,16 +252,18 @@ compile() {
 	copyCustomPackages ${TMPDIR}
 
 
+  local CURDIR=$(pwd)
+  local CCMD="TEXINPUTS=\"${CURDIR}//:\" ${COMPILE_CMD} ${TMPDIR}/${F_TEMPLATE}"
+
   if [ ${DEBUG} -eq 0 ]
   then
-    local CURDIR=$(pwd)
     cd ${TMPDIR}
-    ${COMPILE_CMD} ${TMPDIR}/${F_TEMPLATE} && cp ${TMPDIR}/${F_RESULT} ${CURDIR}/${PDFFILE}
+		eval ${CCMD} && eval ${CCMD} && cp ${TMPDIR}/${F_RESULT} ${CURDIR}/${PDFFILE}
     cd ${CURDIR}
     rm -r ${TMPDIR}
   else
     debug "Debug mode enabled. Please compile and cleanup yourself :)"
-    debug "Compile command would be: ${COMPILE_CMD} ${TMPDIR}/${F_TEMPLATE}"
+    debug "Compile command would be: ${CCMD}"
   fi
 }
 
